@@ -7,8 +7,10 @@ if (!isset($_SESSION['user_id'])) {
 
 include 'db.php';
 
-$user_dept = $_SESSION['department'];
-$user_role = $_SESSION['role'];
+// Safe null-coalescing session fallbacks to eliminate PHP undefined array key warnings
+$user_dept = $_SESSION['department'] ?? 'All';
+$user_role = $_SESSION['role'] ?? 'Student';
+$user_name = $_SESSION['name'] ?? 'User';
 
 // Fetch non-expired notices for user's department or 'All'
 $sql = "SELECT n.*, u.name as author 
@@ -43,7 +45,7 @@ $notices = $stmt->get_result();
       <?php if ($user_role === 'Faculty' || $user_role === 'Admin'): ?>
           <a href="admin_panel.php" class="btn btn-warning btn-sm me-2">Admin Panel</a>
       <?php endif; ?>
-      <span class="me-3">Welcome, <strong><?php echo htmlspecialchars($_SESSION['name']); ?></strong> (<?php echo htmlspecialchars($user_role); ?>)</span>
+      <span class="me-3">Welcome, <strong><?php echo htmlspecialchars($user_name); ?></strong> (<?php echo htmlspecialchars($user_role); ?>)</span>
       <a href="logout.php" class="btn btn-outline-danger btn-sm">Logout</a>
     </div>
   </div>
@@ -56,7 +58,7 @@ $notices = $stmt->get_result();
     </div>
 
     <div class="row">
-        <?php if ($notices->num_rows > 0): ?>
+        <?php if ($notices && $notices->num_rows > 0): ?>
             <?php while($row = $notices->fetch_assoc()): ?>
                 <?php 
                     $badgeClass = 'bg-secondary';
@@ -68,14 +70,14 @@ $notices = $stmt->get_result();
                     <div class="card h-100 shadow-sm border-0">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($row['priority']); ?> Priority</span>
-                                <small class="text-muted fw-bold"><?php echo htmlspecialchars($row['category']); ?></small>
+                                <span class="badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($row['priority'] ?? 'Low'); ?> Priority</span>
+                                <small class="text-muted fw-bold"><?php echo htmlspecialchars($row['category'] ?? 'General'); ?></small>
                             </div>
-                            <h5 class="card-title"><?php echo htmlspecialchars($row['title']); ?></h5>
-                            <p class="card-text"><?php echo nl2br(htmlspecialchars($row['content'])); ?></p>
+                            <h5 class="card-title"><?php echo htmlspecialchars($row['title'] ?? ''); ?></h5>
+                            <p class="card-text"><?php echo nl2br(htmlspecialchars($row['content'] ?? '')); ?></p>
                         </div>
                         <div class="card-footer bg-transparent border-0 text-muted">
-                            <small>Posted by <?php echo htmlspecialchars($row['author']); ?> | Expires: <?php echo $row['expiry_date'] ? htmlspecialchars($row['expiry_date']) : 'N/A'; ?></small>
+                            <small>Posted by <?php echo htmlspecialchars($row['author'] ?? 'Admin'); ?> | Expires: <?php echo !empty($row['expiry_date']) ? htmlspecialchars($row['expiry_date']) : 'N/A'; ?></small>
                         </div>
                     </div>
                 </div>
@@ -111,9 +113,9 @@ function checkEmergencyAlerts() {
     fetch('check_emergency.php')
         .then(response => response.json())
         .then(data => {
-            if (data.emergency) {
-                document.getElementById('emergencyTitle').innerText = '🚨 ' + data.title;
-                document.getElementById('emergencyContent').innerText = data.content;
+            if (data && data.emergency) {
+                document.getElementById('emergencyTitle').innerText = '🚨 ' + (data.title || 'EMERGENCY ALERT');
+                document.getElementById('emergencyContent').innerText = data.content || '';
                 var myModal = new bootstrap.Modal(document.getElementById('emergencyModal'));
                 myModal.show();
             }
